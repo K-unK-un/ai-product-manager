@@ -107,15 +107,20 @@ export default function App() {
 
   const handleDelete = useCallback(
     async (id) => {
-      await api.deleteProject(id);
-      if (id === activeId) {
-        setActiveId(null);
-        setDetail(null);
-        setLivePrd(null);
+      try {
+        await api.deleteProject(id);
+        if (id === activeId) {
+          setActiveId(null);
+          setDetail(null);
+          setLivePrd(null);
+        }
+        refreshProjects();
+        showToast("✅ 项目已删除");
+      } catch (e) {
+        showToast(`❌ ${e.message || "删除失败"}`);
       }
-      refreshProjects();
     },
-    [activeId, refreshProjects]
+    [activeId, refreshProjects, showToast]
   );
 
   const onEvent = useCallback((evt) => {

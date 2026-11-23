@@ -124,3 +124,33 @@ def test_health():
     with TestClient(app) as client:
         r = client.get("/api/health").json()
         assert r["status"] == "ok"
+
+
+def test_delete_project_with_execution_steps():
+    """回归：项目有执行记录（run_steps）时删除不应触发外键错误。"""
+    with TestClient(app) as client:
+        headers = _register(client)
+        events = _stream_chat(client, headers, "做一个校园二手书交易小程序")
+        pid = next(e["project"]["id"] for e in events if e["type"] == "project")
+
+        detail = client.get(f"/api/projects/{pid}", headers=headers).json()
+        assert detail["messages"][-1]["steps"], "应已产生执行记录"
+
+        r = client.delete(f"/api/projects/{pid}", headers=headers)
+        assert r.status_code == 200, r.text
+        assert client.get(f"/api/projects/{pid}", headers=headers).status_code == 404
+
+        # 检查点也应一并清理
+        import sqlite3
+
+        from app.config import DATA_DIR
+
+        cp = sqlite3.connect(DATA_DIR / "checkpoints.sqlite")
+        try:
+            n = cp.execute(
+                "select count(*) from checkpoints where thread_id = ?",
+                (f"project-{pid}",),
+            ).fetchone()[0]
+        finally:
+            cp.close()
+        assert n == 0, "项目的 LangGraph 检查点应被清理"

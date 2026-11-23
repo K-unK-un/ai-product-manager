@@ -61,7 +61,19 @@ export const api = {
     const headers = {};
     if (_token) headers["Authorization"] = "Bearer " + _token;
     const resp = await fetch(`${BASE}/api/projects/${id}`, { method: "DELETE", headers });
-    if (!resp.ok) throw new Error("删除失败");
+    if (resp.status === 401) {
+      setToken("");
+      if (_onUnauthorized) _onUnauthorized();
+      throw new Error("登录已过期，请重新登录");
+    }
+    if (!resp.ok) {
+      let msg = `删除失败 (${resp.status})`;
+      try {
+        const body = await resp.json();
+        if (body.detail) msg = body.detail;
+      } catch {}
+      throw new Error(msg);
+    }
   },
   // 导出 PRD 为 Markdown：普通 <a href> 带不上 Authorization 头，需用 fetch + Blob 下载
   exportPrd: async (id) => {

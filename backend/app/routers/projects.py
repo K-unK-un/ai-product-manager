@@ -1,6 +1,7 @@
 """项目管理接口（按登录用户隔离）。"""
 from fastapi import APIRouter, Depends, HTTPException
 
+from ..agent.graph import get_agent
 from ..db import SessionLocal
 from ..deps import AuthUser, get_current_user
 from ..models import MemoryFact, Message, Project, RunStep
@@ -88,14 +89,24 @@ def get_project(project_id: str, user: AuthUser = Depends(get_current_user)):
 
 
 @router.delete("/api/projects/{project_id}")
-def delete_project(project_id: str, user: AuthUser = Depends(get_current_user)):
+async def delete_project(project_id: str, user: AuthUser = Depends(get_current_user)):
     db = SessionLocal()
     try:
         project = db.get(Project, project_id)
         if not project or project.owner_id != user.id:
             raise HTTPException(404, "项目不存在")
-        db.delete(project)
+        # 执行记录没有 ORM 级联关系，必须先删，否则会触发 SQLite 外键约束
+        db.query(RunStep).filter(RunStep.project_id == project_id).delete(
+            synchronize_session=False
+        )
+        db.delete(project)  # 消息、产品记忆由 ORM cascade 一并删除
         db.commit()
-        return {"ok": True}
     finally:
         db.close()
+
+    # 清理该项目的 LangGraph 检查点，避免残留孤儿线程数据
+    try:
+        await get_agent().delete_thread(project_id)
+    except Exception:
+        pass  # 检查点清理失败不影响项目删除结果
+    return {"ok": True}

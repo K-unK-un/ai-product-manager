@@ -141,6 +141,22 @@ class AgentRuntime:
             else:
                 self._cache.pop(user_id, None)
 
+    async def delete_thread(self, project_id: str) -> None:
+        """删除项目的 LangGraph 检查点数据（项目删除后清理）。"""
+        if self.saver is None:
+            return
+        thread_id = f"project-{project_id}"
+        try:
+            await self.saver.adelete_thread(thread_id)
+            return
+        except NotImplementedError:
+            # 当前 langgraph-checkpoint-sqlite 版本未实现该方法，直接清理两张表
+            conn = self.saver.conn
+            async with self.saver.lock:
+                await conn.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
+                await conn.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+                await conn.commit()
+
     async def close(self) -> None:
         if self.saver is not None:
             await self._saver_cm.__aexit__(None, None, None)
