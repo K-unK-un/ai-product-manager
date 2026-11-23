@@ -73,7 +73,9 @@ docker compose up --build
 
 ### 接入真实 LLM（强烈建议）
 
-启动后打开 **http://localhost:8080**，注册/登录，点击左下角 **⚙️ 设置**，填入 DeepSeek API Key（在 [platform.deepseek.com](https://platform.deepseek.com) 获取），保存后立即生效。
+启动后打开 **http://localhost:8080**，注册/登录，点击左下角 **⚙️ 设置**（图片中红色箭头处），填入 DeepSeek API Key（在 [platform.deepseek.com](https://platform.deepseek.com) 获取），保存后立即生效。
+
+![屏幕截图 2026-11-23 160342](G:\屏幕截图 2026-11-23 160342.jpeg)
 
 - Key 按用户隔离保存在服务器数据库中，每个用户使用自己的 Key；
 - 同一把 DeepSeek Key 同时用于 LLM 推理和官方联网搜索；
